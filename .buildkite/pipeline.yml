@@ -204,3 +204,120 @@
            import Pkg
            Pkg.test("MPI"; test_args=["--backend=AMDGPU"])
            '
+
+ - group: "oneAPI"
+   key: "oneapi"
+   steps:
+    - label: "Build MPICH"
+      key: "oneapi-build-mpich"
+      agents:
+        queue: "oneapi"
+      plugins:
+        # only used to resolve the Level Zero toolchain below
+        - JuliaCI/julia#v1:
+            version: "1.12"
+            persist_depot_dirs: packages,artifacts,compiled
+      env:
+        MPICH_VER_FULL: "4.3.2"
+        # yaksa compiles its Level Zero kernels to (device independent) SPIR-V with
+        # `ocloc -device skl`, but Skylake was dropped from recent releases of the
+        # Intel compute runtime, so retarget the kernels at a device it still knows.
+        OCLOC_SPV_DEVICE: "mtl"
+        CCACHE_DIR: "/root/ccache"
+      commands: |
+        echo "--- Install packages"
+        apt-get install --yes --no-install-recommends build-essential curl ccache
+        export PATH="/usr/lib/ccache:$$PATH"
+
+        echo "--- Level Zero toolchain"
+        # Build against the same Level Zero loader and compute runtime that oneAPI.jl
+        # uses, so that MPICH and oneAPI.jl share a single loader in the test process.
+        julia --color=yes -e '
+            using Pkg
+            Pkg.activate(; temp=true)
+            Pkg.add(["NEO_jll", "libigc_jll", "oneAPI_Level_Zero_Loader_jll"])
+            using NEO_jll, libigc_jll, oneAPI_Level_Zero_Loader_jll
+            write("neo-dir", NEO_jll.artifact_dir)
+            write("igc-dir", libigc_jll.artifact_dir)
+            write("ze-dir", oneAPI_Level_Zero_Loader_jll.artifact_dir)
+            '
+        export PATH="$$(cat neo-dir)/bin:$$PATH"
+        export LD_LIBRARY_PATH="$$(cat igc-dir)/lib:$$(cat neo-dir)/lib:$$LD_LIBRARY_PATH"
+
+        echo "--- Build MPICH"
+        curl -L https://www.mpich.org/static/downloads/$${MPICH_VER_FULL}/mpich-$${MPICH_VER_FULL}.tar.gz --output mpich.tar.gz
+        tar -zxf mpich.tar.gz
+        pushd mpich-$${MPICH_VER_FULL}
+        # fails the step once yaksa stops targeting skl, so the workaround can be dropped
+        grep -q -- "-device skl -spv_only" modules/yaksa/Makefile.in
+        sed -i "s/-device skl -spv_only/-device $${OCLOC_SPV_DEVICE} -spv_only/" modules/yaksa/Makefile.in
+        ./configure --with-ze=$$(cat ../ze-dir) --disable-fortran --enable-fast=O2 --prefix=$$(realpath ../mpi-prefix)
+        make -j $(nproc)
+        make install
+        popd
+
+        echo "--- Package prefix"
+        tar -zcf mpi-prefix.tar.gz mpi-prefix/
+
+        echo "--- ccache stats"
+        ccache -s
+      artifact_paths:
+        - "mpi-prefix.tar.gz"
+
+    - wait
+
+    - label: "Tests -- Julia {{matrix.version}}"
+      matrix:
+        setup:
+          version:
+            - "1.10"
+            - "1.12"
+      concurrency: 1
+      concurrency_group: mpi_oneapi
+      plugins:
+        - JuliaCI/julia#v1:
+            version: "{{matrix.version}}"
+            persist_depot_dirs: packages,artifacts,compiled
+      agents:
+        queue: "oneapi"
+      if: build.message !~ /\[skip tests\]/
+      timeout_in_minutes: 90
+      env:
+        JULIA_MPI_TEST_NPROCS: 2
+        JULIA_MPI_PATH: "${BUILDKITE_BUILD_CHECKOUT_PATH}/mpich"
+        JULIA_MPI_HAS_ONEAPI: "true"
+        # yaksa builds pack/unpack kernels for all datatypes, so the JIT has to
+        # emulate Float64 on devices without native support for it.
+        OverrideDefaultFP64Settings: 1
+        IGC_EnableDPEmulation: 1
+      commands: |
+        echo "--- Configure MPI"
+        buildkite-agent artifact download --step "oneapi-build-mpich" mpi-prefix.tar.gz .
+        mkdir -p $${JULIA_MPI_PATH}
+        tar -zxf mpi-prefix.tar.gz --strip-components 1 -C $${JULIA_MPI_PATH}
+        export PATH=$${JULIA_MPI_PATH}/bin:$${PATH}
+        export LD_LIBRARY_PATH=$${JULIA_MPI_PATH}/lib:$${LD_LIBRARY_PATH}
+
+        echo "--- Setup Julia packages"
+        julia --color=yes --project=. -e '
+            import Pkg
+            Pkg.develop(; path = joinpath(pwd(), "lib", "MPIPreferences"))
+            '
+        julia --color=yes --project=test -e '
+            using Pkg
+            Pkg.develop(path="lib/MPIPreferences")
+            # oneAPI_Level_Zero_Loader_jll is resolved alongside oneAPI, so that
+            # libmpi picks up the very loader oneAPI.jl uses
+            Pkg.add(["oneAPI", "oneAPI_Level_Zero_Loader_jll"])
+            using MPIPreferences, oneAPI_Level_Zero_Loader_jll
+            MPIPreferences.use_system_binary(export_prefs=true)
+            write("ze-dir", oneAPI_Level_Zero_Loader_jll.artifact_dir)
+            rm("test/Manifest.toml")
+            '
+        export LD_LIBRARY_PATH=$$(cat ze-dir)/lib:$${LD_LIBRARY_PATH}
+
+        echo "+++ Run tests"
+        julia --color=yes --project=. -e '
+           import Pkg
+           Pkg.test("MPI"; test_args=["--backend=oneAPI"])
+           '

@@ -15,6 +15,7 @@ MPI.MPI_LIBRARY_VERSION_STRING
 MPI.versioninfo
 MPI.has_cuda
 MPI.has_rocm
+MPI.has_oneapi
 MPI.has_gpu
 MPI.identify_implementation
 ```

@@ -401,8 +401,9 @@ following GPUs:
 
 1. CUDA: via [`MPI.has_cuda`](@ref)
 2. ROCm: via [`MPI.has_rocm`](@ref)
+3. oneAPI: via [`MPI.has_oneapi`](@ref)
 
-See also [`MPI.has_cuda`](@ref) and [`MPI.has_rocm`](@ref) for more fine-grained
-checks.
+See also [`MPI.has_cuda`](@ref), [`MPI.has_rocm`](@ref) and [`MPI.has_oneapi`](@ref) for
+more fine-grained checks.
 """
-has_gpu() = has_cuda() || has_rocm()
+has_gpu() = has_cuda() || has_rocm() || has_oneapi()
