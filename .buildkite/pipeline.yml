@@ -266,7 +266,9 @@
 
     - wait
 
-    - label: "Tests -- Julia {{matrix.version}}"
+    # the label has to differ from the CUDA and ROCm ones, as the GitHub checks
+    # are named after it
+    - label: "oneAPI tests -- Julia {{matrix.version}}"
       matrix:
         setup:
           version:
