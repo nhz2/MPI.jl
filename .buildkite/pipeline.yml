@@ -226,7 +226,9 @@
         CCACHE_DIR: "/root/ccache"
       commands: |
         echo "--- Install packages"
-        apt-get install --yes --no-install-recommends build-essential curl ccache
+        # libdrm-dev provides libdrm/i915_drm.h, without which MPICH silently
+        # configures away drmfd support and its ZE IPC then fails at MPI_Init
+        apt-get install --yes --no-install-recommends build-essential curl ccache libdrm-dev
         export PATH="/usr/lib/ccache:$$PATH"
 
         echo "--- Level Zero toolchain"
