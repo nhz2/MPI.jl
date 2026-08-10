@@ -313,12 +313,18 @@
             # oneAPI_Level_Zero_Loader_jll is resolved alongside oneAPI, so that
             # libmpi picks up the very loader oneAPI.jl uses
             Pkg.add(["oneAPI", "oneAPI_Level_Zero_Loader_jll"])
-            using MPIPreferences, oneAPI_Level_Zero_Loader_jll
-            MPIPreferences.use_system_binary(export_prefs=true)
+            using oneAPI_Level_Zero_Loader_jll
             write("ze-dir", oneAPI_Level_Zero_Loader_jll.artifact_dir)
+            '
+        # libmpi links against libze_loader, so the loader has to be resolvable
+        # already when MPIPreferences dlopens libmpi below
+        export LD_LIBRARY_PATH=$$(cat ze-dir)/lib:$${LD_LIBRARY_PATH}
+        ldd $${JULIA_MPI_PATH}/lib/libmpi.so
+        julia --color=yes --project=test -e '
+            using MPIPreferences
+            MPIPreferences.use_system_binary(export_prefs=true)
             rm("test/Manifest.toml")
             '
-        export LD_LIBRARY_PATH=$$(cat ze-dir)/lib:$${LD_LIBRARY_PATH}
 
         echo "+++ Run tests"
         julia --color=yes --project=. -e '
