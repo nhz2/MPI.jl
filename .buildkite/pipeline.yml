@@ -298,6 +298,13 @@
         # which MPICH's drmfd-based ZE IPC scans at MPI_Init, so exchange
         # dma-buf handles via pidfd_getfd instead
         MPIR_CVAR_CH4_IPC_ZE_SHAREABLE_HANDLE: "pidfd"
+        # without AVX enabled (MPICH builds with plain -O2), MPL_gpu_fast_memcpy
+        # copies through mmapped write-combined device memory with no store
+        # fence, intermittently losing small writes; force the ZE command-list
+        # copy path instead
+        MPIR_CVAR_GPU_FAST_COPY_MAX_SIZE: 0
+        MPIR_CVAR_GPU_FAST_COPY_MAX_SIZE_H2D: 0
+        MPIR_CVAR_GPU_FAST_COPY_MAX_SIZE_D2H: 0
       commands: |
         echo "--- Install packages"
         # libdrm-dev pulls libpciaccess into the build container, where MPICH's
