@@ -294,11 +294,18 @@
         # emulate Float64 on devices without native support for it.
         OverrideDefaultFP64Settings: 1
         IGC_EnableDPEmulation: 1
+        # the test container maps the render nodes but not /dev/dri/by-path,
+        # which MPICH's drmfd-based ZE IPC scans at MPI_Init, so exchange
+        # dma-buf handles via pidfd_getfd instead
+        MPIR_CVAR_CH4_IPC_ZE_SHAREABLE_HANDLE: "pidfd"
       commands: |
         echo "--- Install packages"
         # libdrm-dev pulls libpciaccess into the build container, where MPICH's
         # embedded hwloc picks it up as a dependency of libmpi
         apt-get install --yes --no-install-recommends libpciaccess0
+
+        echo "--- Inspect GPU devices"
+        ls -la /dev/dri/ || true
 
         echo "--- Configure MPI"
         buildkite-agent artifact download --step "oneapi-build-mpich" mpi-prefix.tar.gz .
