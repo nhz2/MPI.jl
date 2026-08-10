@@ -295,6 +295,11 @@
         OverrideDefaultFP64Settings: 1
         IGC_EnableDPEmulation: 1
       commands: |
+        echo "--- Install packages"
+        # libdrm-dev pulls libpciaccess into the build container, where MPICH's
+        # embedded hwloc picks it up as a dependency of libmpi
+        apt-get install --yes --no-install-recommends libpciaccess0
+
         echo "--- Configure MPI"
         buildkite-agent artifact download --step "oneapi-build-mpich" mpi-prefix.tar.gz .
         mkdir -p $${JULIA_MPI_PATH}
