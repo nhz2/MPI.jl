@@ -346,6 +346,11 @@
             '
 
         echo "+++ Run tests"
+        # MPICH's in-place Alltoall (via MPI_Sendrecv_replace, which packs the
+        # device buffer out and then receives back into the same allocation)
+        # intermittently loses small messages on this device, even with the
+        # fast-memcpy path disabled
+        export JULIA_MPI_TEST_EXCLUDE="test_alltoall.jl"
         julia --color=yes --project=. -e '
            import Pkg
            Pkg.test("MPI"; test_args=["--backend=oneAPI"])
