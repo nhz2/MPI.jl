@@ -305,6 +305,11 @@
         MPIR_CVAR_GPU_FAST_COPY_MAX_SIZE: 0
         MPIR_CVAR_GPU_FAST_COPY_MAX_SIZE_H2D: 0
         MPIR_CVAR_GPU_FAST_COPY_MAX_SIZE_D2H: 0
+        # MPICH defaults to legacy command queues for its ZE copies, a path
+        # recent compute runtimes barely exercise (SYCL and oneAPI.jl submit
+        # via immediate command lists); the legacy path intermittently corrupts
+        # small host<->device copies on this device
+        MPIR_CVAR_GPU_USE_IMMEDIATE_COMMAND_LIST: 1
       commands: |
         echo "--- Install packages"
         # libdrm-dev pulls libpciaccess into the build container, where MPICH's
