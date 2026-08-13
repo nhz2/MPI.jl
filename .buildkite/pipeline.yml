@@ -218,7 +218,9 @@
             version: "1.12"
             persist_depot_dirs: packages,artifacts,compiled
       env:
-        MPICH_VER_FULL: "4.3.2"
+        # MPICH 5 carries a year of Level Zero fixes over 4.3.x, which
+        # intermittently corrupts small device-buffer messages on this device
+        MPICH_VER_FULL: "5.0.1"
         # yaksa compiles its Level Zero kernels to (device independent) SPIR-V with
         # `ocloc -device skl`, but Skylake was dropped from recent releases of the
         # Intel compute runtime, so retarget the kernels at a device it still knows.
@@ -251,8 +253,8 @@
         tar -zxf mpich.tar.gz
         pushd mpich-$${MPICH_VER_FULL}
         # fails the step once yaksa stops targeting skl, so the workaround can be dropped
-        grep -q -- "-device skl -spv_only" modules/yaksa/Makefile.in
-        sed -i "s/-device skl -spv_only/-device $${OCLOC_SPV_DEVICE} -spv_only/" modules/yaksa/Makefile.in
+        grep -q -- "-device skl -spv_only" src/mpi/datatype/typerep/yaksa/Makefile.in
+        sed -i "s/-device skl -spv_only/-device $${OCLOC_SPV_DEVICE} -spv_only/" src/mpi/datatype/typerep/yaksa/Makefile.in
         ./configure --with-ze=$$(cat ../ze-dir) --disable-fortran --enable-fast=O2 --prefix=$$(realpath ../mpi-prefix)
         make -j $(nproc)
         make install
