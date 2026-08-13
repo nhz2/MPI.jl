@@ -288,6 +288,11 @@
         queue: "oneapi"
       if: build.message !~ /\[skip tests\]/
       timeout_in_minutes: 90
+      # MPICH's ZE backend intermittently corrupts small device-buffer
+      # messages on this device (see the run-tests comment below), which can
+      # strike any test in the suite; don't let the known-broken upstream
+      # stack block PRs
+      soft_fail: true
       env:
         JULIA_MPI_TEST_NPROCS: 2
         JULIA_MPI_PATH: "${BUILDKITE_BUILD_CHECKOUT_PATH}/mpich"
@@ -353,11 +358,13 @@
             '
 
         echo "+++ Run tests"
-        # MPICH's in-place Alltoall (via MPI_Sendrecv_replace, which packs the
-        # device buffer out and then receives back into the same allocation)
-        # intermittently loses small messages on this device, even with the
-        # fast-memcpy path disabled
-        export JULIA_MPI_TEST_EXCLUDE="test_alltoall.jl"
+        # MPICH (4.3.2 and 5.0.1 alike) intermittently corrupts small
+        # device-buffer messages on this iGPU: the tail of a message received
+        # into device memory is stale or scrambled while its head is intact.
+        # The alltoall tests trip over this near-deterministically, so exclude
+        # them; the rest of the suite mostly passes but can be struck by the
+        # same bug, hence soft_fail on this step.
+        export JULIA_MPI_TEST_EXCLUDE="test_alltoall.jl,test_alltoallv.jl"
         julia --color=yes --project=. -e '
            import Pkg
            Pkg.test("MPI"; test_args=["--backend=oneAPI"])
