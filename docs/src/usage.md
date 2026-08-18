@@ -115,6 +115,13 @@ your ROCm-aware MPI implementation to use multiple AMD GPUs (one GPU per rank).
 If using OpenMPI, the status of ROCm support can be checked via the
 [`MPI.has_rocm()`](@ref) function.
 
+### oneAPI
+
+Passing `oneArray`s to MPI requires an MPI implementation built with Level Zero support,
+e.g. MPICH configured with `--with-ze`. No MPI implementation currently provides a way to
+query that support, so [`MPI.has_oneapi()`](@ref) reports whatever the
+`JULIA_MPI_HAS_ONEAPI` environment variable is set to, and `false` if it is unset.
+
 ### Multiple GPUs per node
 
 In a configuration with multiple GPUs per node, mapping GPU ID to node local MPI rank can be achieved either (1) on the application side using node-local communicator (`MPI.COMM_TYPE_SHARED`) or (2) on the system side setting device visibility accordingly.

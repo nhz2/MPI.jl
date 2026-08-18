@@ -375,6 +375,25 @@ function has_rocm()
 end
 
 """
+    MPI.has_oneapi()
+
+Check if the MPI implementation is known to have oneAPI support.
+
+This can be overridden by setting the `JULIA_MPI_HAS_ONEAPI` environment variable to `true`
+or `false`.
+
+See also [`MPI.has_cuda`](@ref) and [`MPI.has_rocm`](@ref) for CUDA and ROCm support.
+"""
+function has_oneapi()
+    flag = get(ENV, "JULIA_MPI_HAS_ONEAPI", nothing)
+    if flag === nothing
+        return false
+    else
+        return parse(Bool, flag)
+    end
+end
+
+"""
     MPI.has_gpu()
 
 Checks if the MPI implementation is known to have GPU support. Currently this checks for the
@@ -382,8 +401,9 @@ following GPUs:
 
 1. CUDA: via [`MPI.has_cuda`](@ref)
 2. ROCm: via [`MPI.has_rocm`](@ref)
+3. oneAPI: via [`MPI.has_oneapi`](@ref)
 
-See also [`MPI.has_cuda`](@ref) and [`MPI.has_rocm`](@ref) for more fine-grained
-checks.
+See also [`MPI.has_cuda`](@ref), [`MPI.has_rocm`](@ref) and [`MPI.has_oneapi`](@ref) for
+more fine-grained checks.
 """
-has_gpu() = has_cuda() || has_rocm()
+has_gpu() = has_cuda() || has_rocm() || has_oneapi()

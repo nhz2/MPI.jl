@@ -49,6 +49,17 @@ elseif backend_name == "AMDGPU"
     import AMDGPU
     AMDGPU.versioninfo()
     ArrayType = AMDGPU.ROCArray
+elseif backend_name == "oneAPI"
+    Pkg.add("oneAPI")
+    ENV["JULIA_MPI_TEST_ARRAYTYPE"] = "oneArray"
+    import oneAPI
+    oneAPI.versioninfo()
+    ArrayType = oneAPI.oneArray
+
+    @info """
+    Running oneAPI tests. Ensure that your MPI implementation is
+    oneAPI-aware using `MPI.has_oneapi` before reporting issues.
+    """
 else
     ArrayType = Array
 end
