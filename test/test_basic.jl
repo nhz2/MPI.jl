@@ -18,9 +18,15 @@ if get(ENV, "JULIA_MPI_TEST_ARRAYTYPE", "") == "ROCArray"
     @test MPI.has_rocm()
 end
 
+@test MPI.has_oneapi() isa Bool
+
+if get(ENV, "JULIA_MPI_TEST_ARRAYTYPE", "") == "oneArray"
+    @test MPI.has_oneapi()
+end
+
 @test MPI.has_gpu() isa Bool
 
-if get(ENV, "JULIA_MPI_TEST_ARRAYTYPE", "") == "CuArray" || get(ENV, "JULIA_MPI_TEST_ARRAYTYPE", "") == "ROCArray"
+if get(ENV, "JULIA_MPI_TEST_ARRAYTYPE", "") in ("CuArray", "ROCArray", "oneArray")
     @test MPI.has_gpu()
 end
 
