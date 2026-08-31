@@ -25,8 +25,6 @@ end
 
 _, backend_name = parse_flags!(ARGS, "--backend"; default="CPU", typ=String)
 
-# load test packages to trigger precompilation
-using DoubleFloats
 @static if backend_name == "CUDA"
     Pkg.add("CUDA")
     ENV["JULIA_MPI_TEST_ARRAYTYPE"] = "CuArray"
