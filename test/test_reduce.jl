@@ -9,7 +9,7 @@ const can_do_closures =
     Sys.ARCH !== :aarch64 &&
     !startswith(string(Sys.ARCH), "arm")
 
-# a non-builtin isbits type, to test automatic datatype/op creation
+# a non-builtin isbits type to test generic MPI.reduce
 struct TestSum
     hi::Float64
     lo::Float64
