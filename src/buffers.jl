@@ -24,12 +24,12 @@ MPIBuffertypeOrConst{T} = Union{MPIBuffertype{T}, SentinelPtr}
 #     │
 #     ▼
 #   cconvert(MPIPtr, x)
-#     calls Base.cconvert(Ptr{Float64}, x) — returns the Array (kept alive)
-#     wraps it in CConvWrapper{Ptr{Float64}}(array)
-#     ◄── ccall GC-roots this CConvWrapper, which holds the Array
+#     calls Base.cconvert(Ptr{Float64}, x) — returns x's memory ref (kept alive)
+#     wraps it in CConvWrapper{Ptr{Float64}}(x's memory ref)
+#     ◄── ccall GC-roots this CConvWrapper, which holds x's memory ref
 #     │
 #     ▼
-#   unsafe_convert(MPIPtr, wrapper::CConvWrapper{Ptr{Float64}})
+#   unsafe_convert(MPIPtr, wrapper::CConvWrapper{Ptr{Float64}, MemoryRef{Float64}})
 #     calls Base.unsafe_convert(Ptr{Float64}, wrapper.cconv) — extracts raw ptr
 #     reinterprets to MPIPtr
 #     ◄── only called while ccall holds the GC root on the wrapper
@@ -39,7 +39,7 @@ MPIBuffertypeOrConst{T} = Union{MPIBuffertype{T}, SentinelPtr}
 # bit types with no GC-managed backing memory.
 struct CConvWrapper{T, C}
     # T: the intermediate pointer type (e.g. Ptr{Float64}, CuPtr{Float64})
-    # C: the type of the GC-rooted cconvert result (e.g. Array{Float64,1})
+    # C: the type of the GC-rooted cconvert result (e.g. MemoryRef{Float64})
     cconv::C  # the GC-rooted object — kept alive by ccall holding the wrapper
 end
 function CConvWrapper(::Type{T}, x) where T
@@ -51,7 +51,6 @@ end
 
 function Base.unsafe_convert(::Type{MPIPtr}, x::CConvWrapper{T}) where T
     # Called by ccall while x (and thus x.cconv) is GC-rooted.
-    # Delegate to the Base pointer extraction, then reinterpret to MPIPtr.
     ptr = Base.unsafe_convert(T, x.cconv)
     reinterpret(MPIPtr, ptr)
 end
