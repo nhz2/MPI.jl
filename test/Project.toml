@@ -1,5 +1,4 @@
 [deps]
-DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -18,7 +17,6 @@ MPIPreferences = {path = "../lib/MPIPreferences"}
 [compat]
 AMDGPU = "0.6, 0.7, 0.8, 0.9, 1, 2"
 CUDA = "3, 4, 5"
-DoubleFloats = "1.4"
 MPIPreferences = "0.1"
 TOML = "< 0.0.1, 1.0"
 
