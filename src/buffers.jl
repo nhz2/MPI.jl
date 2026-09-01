@@ -1,5 +1,18 @@
-MPIBuffertype{T} = Union{Ptr{T}, Array{T}, SubArray{T}, Ref{T}}
+MPIBuffertype{T} = Union{Ptr{T}, AbstractArray{T}, Ref{T}}
 MPIBuffertypeOrConst{T} = Union{MPIBuffertype{T}, SentinelPtr}
+
+"""
+    mpi_ptr_type(x)
+
+Return the pointer type that should be used when converting `x` to an [`MPIPtr`](@ref).
+
+For `AbstractArray{T}` and `Ref{T}` this defaults to `Ptr{T}`.
+For `SubArray` this defaults to `mpi_ptr_type(parent(x))`.
+For `CUDA.CuArray{T}` this is `CUDA.CuPtr{T}`.
+"""
+mpi_ptr_type(::Union{AbstractArray{T}, Ref{T}}) where T = Ptr{T}
+mpi_ptr_type(::String) = Ptr{UInt8}
+mpi_ptr_type(x::SubArray) = mpi_ptr_type(parent(x))
 
 # CConvWrapper: GC-safe adapter for converting Julia objects to MPIPtr in ccall.
 #
@@ -24,6 +37,7 @@ MPIBuffertypeOrConst{T} = Union{MPIBuffertype{T}, SentinelPtr}
 #     │
 #     ▼
 #   cconvert(MPIPtr, x)
+#     calls mpi_ptr_type(x) — returns Ptr{Float64}
 #     calls Base.cconvert(Ptr{Float64}, x) — returns x's memory ref (kept alive)
 #     wraps it in CConvWrapper{Ptr{Float64}}(x's memory ref)
 #     ◄── ccall GC-roots this CConvWrapper, which holds x's memory ref
@@ -38,30 +52,23 @@ MPIBuffertypeOrConst{T} = Union{MPIBuffertype{T}, SentinelPtr}
 # the wrapper and return an MPIPtr directly from cconvert, since they are plain
 # bit types with no GC-managed backing memory.
 struct CConvWrapper{T, C}
-    # T: the intermediate pointer type (e.g. Ptr{Float64}, CuPtr{Float64})
+    # T: the intermediate pointer type from `mpi_ptr_type` (e.g. Ptr{Float64}, CuPtr{Float64})
     # C: the type of the GC-rooted cconvert result (e.g. MemoryRef{Float64})
     cconv::C  # the GC-rooted object — kept alive by ccall holding the wrapper
 end
+
+function Base.cconvert(::Type{MPIPtr}, x)
+    CConvWrapper(mpi_ptr_type(x), x)
+end
+
 function CConvWrapper(::Type{T}, x) where T
-    # Delegate to Base.cconvert(T, x) to get the GC-rootable object, then wrap
-    # it so unsafe_convert dispatch is predictable.
     cconv = Base.cconvert(T, x)
     CConvWrapper{T, typeof(cconv)}(cconv)
 end
 
 function Base.unsafe_convert(::Type{MPIPtr}, x::CConvWrapper{T}) where T
-    # Called by ccall while x (and thus x.cconv) is GC-rooted.
     ptr = Base.unsafe_convert(T, x.cconv)
     reinterpret(MPIPtr, ptr)
-end
-
-# --- cconvert methods for types with GC-managed memory (use CConvWrapper) ---
-
-function Base.cconvert(::Type{MPIPtr}, x::Union{Array{T}, SubArray{T}, Ref{T}}) where T
-    CConvWrapper(Ptr{T}, x)
-end
-function Base.cconvert(::Type{MPIPtr}, x::String)
-    CConvWrapper(Ptr{UInt8}, x)
 end
 
 # --- cconvert methods for plain bit types (no GC protection needed) ---
@@ -83,12 +90,7 @@ end
 
 A pointer to an MPI buffer. This type is used only as part of the implicit conversion in
 `ccall`: a Julia object can be passed to MPI by defining a method for
-`Base.cconvert(::Type{MPIPtr}, ...)` which returns an `MPI.CConvWrapper` wrapping the
-appropriate pointer type, e.g.
-
-```julia
-Base.cconvert(::Type{MPIPtr}, x::MyArray{T}) where {T} = MPI.CConvWrapper(Ptr{T}, x)
-```
+[`mpi_ptr_type`](@ref).
 
 Currently supported are:
  - `Ptr`
