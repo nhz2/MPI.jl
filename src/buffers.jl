@@ -83,8 +83,13 @@ end
     MPI.MPIPtr
 
 A pointer to an MPI buffer. This type is used only as part of the implicit conversion in
-`ccall`: a Julia object can be passed to MPI by defining methods for
-`Base.cconvert(::Type{MPIPtr}, ...)`/`Base.unsafe_convert(::Type{MPIPtr}, ...)`.
+`ccall`: a Julia object can be passed to MPI by defining a method for
+`Base.cconvert(::Type{MPIPtr}, ...)` which returns an `MPI.CConvWrapper` wrapping the
+appropriate pointer type, e.g.
+
+```julia
+Base.cconvert(::Type{MPIPtr}, x::MyArray{T}) where {T} = MPI.CConvWrapper(Ptr{T}, x)
+```
 
 Currently supported are:
  - `Ptr`
@@ -93,6 +98,7 @@ Currently supported are:
  - `SubArray`
  - `CUDA.CuArray` if CUDA.jl is loaded.
  - `AMDGPU.ROCArray` if AMDGPU.jl is loaded.
+ - `oneAPI.oneArray` if oneAPI.jl is loaded.
 
 Additionally, certain sentinel values can be used, e.g. `MPI_IN_PLACE` or `MPI_BOTTOM`.
 """
@@ -153,8 +159,9 @@ and `datatype`. Methods are provided for
  - `Array`
  - `CUDA.CuArray` if CUDA.jl is loaded.
  - `AMDGPU.ROCArray` if AMDGPU.jl is loaded.
- - `SubArray`s of an `Array`, `CUDA.CuArray` or `AMDGPU.ROCArray` where the layout is contiguous, sequential or
-   blocked.
+ - `oneAPI.oneArray` if oneAPI.jl is loaded.
+ - `SubArray`s of an `Array`, `CUDA.CuArray`, `AMDGPU.ROCArray` or `oneAPI.oneArray` where
+   the layout is contiguous, sequential or blocked.
 
 # See also
 
