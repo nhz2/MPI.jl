@@ -10,5 +10,4 @@ MPI.UBuffer
 MPI.VBuffer
 MPI.RBuffer
 MPI.MPIPtr
-MPI.mpi_ptr_type
 ```

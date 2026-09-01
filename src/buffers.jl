@@ -1,4 +1,4 @@
-MPIBuffertype{T} = Union{Ptr{T}, AbstractArray{T}, Ref{T}}
+MPIBuffertype{T} = Union{Ptr{T}, Array{T}, SubArray{T}, Ref{T}}
 MPIBuffertypeOrConst{T} = Union{MPIBuffertype{T}, SentinelPtr}
 
 """
@@ -57,7 +57,7 @@ struct CConvWrapper{T, C}
     cconv::C  # the GC-rooted object — kept alive by ccall holding the wrapper
 end
 
-function Base.cconvert(::Type{MPIPtr}, x)
+function Base.cconvert(::Type{MPIPtr}, x::Union{AbstractArray, String, Ref})
     CConvWrapper(mpi_ptr_type(x), x)
 end
 
@@ -89,8 +89,8 @@ end
     MPI.MPIPtr
 
 A pointer to an MPI buffer. This type is used only as part of the implicit conversion in
-`ccall`: a Julia object can be passed to MPI by defining a method for
-[`mpi_ptr_type`](@ref).
+`ccall`: a Julia object can be passed to MPI by defining methods for
+`Base.cconvert(::Type{MPIPtr}, ...)`/`Base.unsafe_convert(::Type{MPIPtr}, ...)`.
 
 Currently supported are:
  - `Ptr`
